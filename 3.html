@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Farm Village Life</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #87c9ff;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    #wrap {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(#8ed0ff 0%, #b9ecff 45%, #9bd97c 45%, #7bc96f 100%);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+    .hud {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px;
+      z-index: 5;
+      pointer-events: none;
+      color: white;
+      font-weight: 700;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.45);
+    }
+    .pill {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    #menu, #helpBox {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 10;
+      background: rgba(2, 6, 23, 0.45);
+      color: white;
+    }
+    .panel {
+      width: min(92vw, 460px);
+      background: rgba(15, 23, 42, 0.84);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 24px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+    }
+    h1, h2, p { margin: 0; }
+    .btnRow {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 14px 18px;
+      min-width: 120px;
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+      background: #16a34a;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+    }
+    button.secondary { background: #2563eb; }
+    button:active { transform: scale(0.98); }
+    #controls {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+    }
+    .joyBase {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      width: 126px;
+      height: 126px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.28);
+      border: 2px solid rgba(255,255,255,0.16);
+      pointer-events: auto;
+      backdrop-filter: blur(4px);
+    }
+    .joyKnob {
+      position: absolute;
+      left: 39px;
+      top: 39px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.34);
+      border: 2px solid rgba(255,255,255,0.25);
+    }
+    .rightButtons {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: auto;
+    }
+    .touchBtn {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.34);
+      border: 2px solid rgba(255,255,255,0.2);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 900;
+      user-select: none;
+      backdrop-filter: blur(4px);
+      text-align: center;
+      padding: 8px;
+    }
+    .hidden { display: none !important; }
+    .small { font-size: 13px; line-height: 1.45; opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="pill">Day: <span id="day">1</span></div>
+      <div class="pill">Coins: <span id="coins">0</span></div>
+      <div class="pill">Seeds: <span id="seeds">5</span></div>
+      <div class="pill">Energy: <span id="energy">100</span></div>
+      <div class="pill">Tool: <span id="tool">Hoe</span></div>
+    </div>
+
+    <div id="menu">
+      <div class="panel">
+        <h1>Farm Village Life</h1>
+        <p style="margin-top:10px; line-height:1.55;">
+          I assumed you meant a <strong>Stardew Valley-style</strong> village game.<br>
+          Walk around, till soil, plant seeds, water crops, harvest, sell, and sleep to pass days.
+        </p>
+        <div class="btnRow">
+          <button id="startBtn">Start</button>
+          <button id="helpBtn" class="secondary">How To Play</button>
+        </div>
+        <p class="small" style="margin-top:16px;">
+          Left joystick = move.<br>
+          ACT = use selected tool on nearby tile.<br>
+          TOOL = switch Hoe / Seeds / Water / Harvest.<br>
+          Desktop: WASD or arrows to move, Space to act, T to switch tool.
+        </p>
+      </div>
+    </div>
+
+    <div id="helpBox" class="hidden">
+      <div class="panel">
+        <h2>How To Play</h2>
+        <p style="margin-top:10px; line-height:1.6; text-align:left;">
+          1. Go near brown ground tiles in the farm area.<br>
+          2. Use <b>Hoe</b> to till soil.<br>
+          3. Switch to <b>Seeds</b> and plant.<br>
+          4. Switch to <b>Water</b> and water daily.<br>
+          5. After a few days crops become ready.<br>
+          6. Use <b>Harvest</b> to collect and earn coins.<br>
+          7. Go to the house door and sleep to start a new day.
+        </p>
+        <div class="btnRow">
+          <button id="closeHelpBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="controls" class="hidden">
+      <div class="joyBase" id="joyBase"><div class="joyKnob" id="joyKnob"></div></div>
+      <div class="rightButtons">
+        <div class="touchBtn" id="toolBtn">TOOL</div>
+        <div class="touchBtn" id="actBtn">ACT</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const dayEl = document.getElementById('day');
+    const coinsEl = document.getElementById('coins');
+    const seedsEl = document.getElementById('seeds');
+    const energyEl = document.getElementById('energy');
+    const toolEl = document.getElementById('tool');
+    const menu = document.getElementById('menu');
+    const helpBox = document.getElementById('helpBox');
+    const controls = document.getElementById('controls');
+
+    const input = { up:false, down:false, left:false, right:false, act:false, actPressed:false };
+    const TILE = 40;
+    const MAP_W = 20;
+    const MAP_H = 14;
+    const TOOLS = ['Hoe', 'Seeds', 'Water', 'Harvest'];
+
+    function setKey(code, v) {
+      if (code === 'ArrowUp' || code === 'KeyW') input.up = v;
+      if (code === 'ArrowDown' || code === 'KeyS') input.down = v;
+      if (code === 'ArrowLeft' || code === 'KeyA') input.left = v;
+      if (code === 'ArrowRight' || code === 'KeyD') input.right = v;
+      if (code === 'Space') {
+        input.act = v;
+        if (v) input.actPressed = true;
+      }
+      if (code === 'KeyT' && v) game.nextTool();
+    }
+    addEventListener('keydown', e => setKey(e.code, true));
+    addEventListener('keyup', e => setKey(e.code, false));
+
+    function resize() {
+      canvas.width = Math.floor(innerWidth * devicePixelRatio);
+      canvas.height = Math.floor(innerHeight * devicePixelRatio);
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      game.viewW = innerWidth;
+      game.viewH = innerHeight;
+    }
+    addEventListener('resize', resize);
+
+    const joyBase = document.getElementById('joyBase');
+    const joyKnob = document.getElementById('joyKnob');
+    let joyActive = false;
+    function resetJoystick() {
+      joyKnob.style.left = '39px';
+      joyKnob.style.top = '39px';
+      input.up = input.down = input.left = input.right = false;
+    }
+    function updateJoystick(clientX, clientY) {
+      const rect = joyBase.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = clientX - cx, dy = clientY - cy;
+      const max = 36;
+      const dist = Math.hypot(dx, dy);
+      if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }
+      joyKnob.style.left = (41 + dx - 2) + 'px';
+      joyKnob.style.top = (41 + dy - 2) + 'px';
+      input.left = dx < -10; input.right = dx > 10; input.up = dy < -10; input.down = dy > 10;
+    }
+    joyBase.addEventListener('touchstart', e => { joyActive = true; updateJoystick(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive:false });
+    joyBase.addEventListener('touchmove', e => { if (!joyActive) return; updateJoystick(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive:false });
+    joyBase.addEventListener('touchend', e => { joyActive = false; resetJoystick(); e.preventDefault(); }, { passive:false });
+    joyBase.addEventListener('mousedown', e => { joyActive = true; updateJoystick(e.clientX, e.clientY); });
+    addEventListener('mousemove', e => { if (joyActive) updateJoystick(e.clientX, e.clientY); });
+    addEventListener('mouseup', () => { joyActive = false; resetJoystick(); });
+
+    function pressAct(e) { e.preventDefault(); input.act = true; input.actPressed = true; }
+    function releaseAct(e) { e.preventDefault(); input.act = false; }
+    const actBtn = document.getElementById('actBtn');
+    ['touchstart','mousedown'].forEach(evt => actBtn.addEventListener(evt, pressAct, { passive:false }));
+    ['touchend','touchcancel','mouseup','mouseleave'].forEach(evt => actBtn.addEventListener(evt, releaseAct, { passive:false }));
+    document.getElementById('toolBtn').addEventListener('touchstart', e => { e.preventDefault(); game.nextTool(); }, { passive:false });
+    document.getElementById('toolBtn').addEventListener('mousedown', e => { e.preventDefault(); game.nextTool(); });
+
+    class Player {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = 6 * TILE + TILE / 2;
+        this.y = 10 * TILE + TILE / 2;
+        this.r = 14;
+        this.speed = 2.7;
+        this.dirX = 0;
+        this.dirY = 1;
+      }
+      update() {
+        let mx = 0, my = 0;
+        if (input.left) mx -= 1;
+        if (input.right) mx += 1;
+        if (input.up) my -= 1;
+        if (input.down) my += 1;
+        const len = Math.hypot(mx, my) || 1;
+        mx /= len; my /= len;
+        if (mx || my) { this.dirX = mx; this.dirY = my; }
+        const nx = this.x + mx * this.speed;
+        const ny = this.y + my * this.speed;
+        if (!game.isBlocked(nx, this.y)) this.x = nx;
+        if (!game.isBlocked(this.x, ny)) this.y = ny;
+        if (input.actPressed) {
+          game.useTool();
+          input.actPressed = false;
+        }
+      }
+      tileInFront() {
+        const fx = this.x + this.dirX * TILE * 0.7;
+        const fy = this.y + this.dirY * TILE * 0.7;
+        return { tx: Math.floor(fx / TILE), ty: Math.floor(fy / TILE) };
+      }
+      draw(camX, camY) {
+        ctx.save();
+        ctx.translate(this.x - camX, this.y - camY);
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath(); ctx.arc(0, 0, this.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#dbeafe';
+        ctx.beginPath(); ctx.arc(0, -4, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(this.dirX * 16, this.dirY * 16);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    const game = {
+      viewW: innerWidth,
+      viewH: innerHeight,
+      running: false,
+      player: null,
+      map: [],
+      farmPlots: [],
+      day: 1,
+      coins: 0,
+      seeds: 5,
+      energy: 100,
+      toolIndex: 0,
+      lastTime: 0,
+
+      createWorld() {
+        this.map = Array.from({ length: MAP_H }, () => Array.from({ length: MAP_W }, () => 'grass'));
+
+        for (let x = 0; x < MAP_W; x++) {
+          this.map[0][x] = 'tree';
+          this.map[MAP_H-1][x] = 'tree';
+        }
+        for (let y = 0; y < MAP_H; y++) {
+          this.map[y][0] = 'tree';
+          this.map[y][MAP_W-1] = 'tree';
+        }
+
+        for (let y = 2; y <= 8; y++) {
+          for (let x = 2; x <= 8; x++) this.map[y][x] = 'field';
+        }
+
+        for (let y = 2; y <= 4; y++) {
+          for (let x = 12; x <= 15; x++) this.map[y][x] = 'house';
+        }
+        this.map[5][13] = 'door';
+        this.map[5][14] = 'door';
+
+        for (let y = 8; y <= 10; y++) {
+          for (let x = 13; x <= 17; x++) this.map[y][x] = 'shop';
+        }
+
+        this.farmPlots = [];
+        for (let y = 2; y <= 8; y++) {
+          const row = [];
+          for (let x = 2; x <= 8; x++) {
+            row.push({ tilled:false, planted:false, watered:false, stage:0, ready:false });
+          }
+          this.farmPlots.push(row);
+        }
+      },
+
+      reset() {
+        if (!this.player) this.player = new Player();
+        this.player.reset();
+        this.createWorld();
+        this.day = 1;
+        this.coins = 0;
+        this.seeds = 5;
+        this.energy = 100;
+        this.toolIndex = 0;
+        this.updateHUD();
+      },
+
+      start() {
+        this.reset();
+        this.running = true;
+        menu.classList.add('hidden');
+        helpBox.classList.add('hidden');
+        controls.classList.remove('hidden');
+      },
+
+      nextTool() {
+        this.toolIndex = (this.toolIndex + 1) % TOOLS.length;
+        this.updateHUD();
+      },
+
+      currentTool() { return TOOLS[this.toolIndex]; },
+
+      updateHUD() {
+        dayEl.textContent = this.day;
+        coinsEl.textContent = this.coins;
+        seedsEl.textContent = this.seeds;
+        energyEl.textContent = this.energy;
+        toolEl.textContent = this.currentTool();
+      },
+
+      isBlocked(px, py) {
+        const tx = Math.floor(px / TILE);
+        const ty = Math.floor(py / TILE);
+        if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
+        const cell = this.map[ty][tx];
+        return cell === 'tree' || cell === 'house' || cell === 'shop';
+      },
+
+      getPlot(tx, ty) {
+        if (tx < 2 || tx > 8 || ty < 2 || ty > 8) return null;
+        return this.farmPlots[ty - 2][tx - 2];
+      },
+
+      spendEnergy(v) {
+        if (this.energy < v) return false;
+        this.energy -= v;
+        return true;
+      },
+
+      useTool() {
+        if (!this.running) return;
+        const { tx, ty } = this.player.tileInFront();
+        const cell = (this.map[ty] && this.map[ty][tx]) || 'void';
+
+        if (cell === 'door') {
+          this.sleepNextDay();
+          return;
+        }
+
+        if (cell === 'shop') {
+          if (this.coins >= 3) {
+            this.coins -= 3;
+            this.seeds += 3;
+          }
+          this.updateHUD();
+          return;
+        }
+
+        const plot = this.getPlot(tx, ty);
+        if (!plot) return;
+
+        const tool = this.currentTool();
+        if (tool === 'Hoe') {
+          if (!plot.tilled && this.spendEnergy(4)) {
+            plot.tilled = true;
+            plot.planted = false;
+            plot.watered = false;
+            plot.stage = 0;
+            plot.ready = false;
+          }
+        } else if (tool === 'Seeds') {
+          if (plot.tilled && !plot.planted && this.seeds > 0 && this.spendEnergy(2)) {
+            plot.planted = true;
+            plot.stage = 1;
+            plot.watered = false;
+            plot.ready = false;
+            this.seeds--;
+          }
+        } else if (tool === 'Water') {
+          if (plot.planted && !plot.ready && this.spendEnergy(2)) {
+            plot.watered = true;
+          }
+        } else if (tool === 'Harvest') {
+          if (plot.ready && this.spendEnergy(1)) {
+            plot.tilled = true;
+            plot.planted = false;
+            plot.watered = false;
+            plot.stage = 0;
+            plot.ready = false;
+            this.coins += 5;
+            if (Math.random() < 0.35) this.seeds += 1;
+          }
+        }
+        this.updateHUD();
+      },
+
+      sleepNextDay() {
+        this.day++;
+        this.energy = 100;
+        for (const row of this.farmPlots) {
+          for (const p of row) {
+            if (p.planted && p.watered && !p.ready) {
+              p.stage++;
+              if (p.stage >= 4) p.ready = true;
+            }
+            p.watered = false;
+          }
+        }
+        this.updateHUD();
+      },
+
+      update() {
+        if (!this.running) return;
+        this.player.update();
+      },
+
+      drawCell(cell, x, y, camX, camY) {
+        const sx = x * TILE - camX;
+        const sy = y * TILE - camY;
+        if (sx + TILE < 0 || sy + TILE < 0 || sx > this.viewW || sy > this.viewH) return;
+
+        if (cell === 'grass') {
+          ctx.fillStyle = ((x + y) % 2 === 0) ? '#78c46d' : '#70ba65';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.fillStyle = 'rgba(34, 197, 94, 0.18)';
+          ctx.fillRect(sx + 6, sy + 6, 8, 8);
+        } else if (cell === 'field') {
+          ctx.fillStyle = '#94724b';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+          ctx.strokeRect(sx, sy, TILE, TILE);
+          const p = this.getPlot(x, y);
+          if (p) {
+            if (p.tilled) {
+              ctx.fillStyle = '#7a5530';
+              ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
+            }
+            if (p.planted) {
+              ctx.fillStyle = p.ready ? '#f59e0b' : '#22c55e';
+              const h = 6 + p.stage * 5;
+              ctx.fillRect(sx + 16, sy + TILE - 8 - h, 8, h);
+              ctx.fillRect(sx + 10, sy + TILE - 10 - h/2, 6, 6);
+              ctx.fillRect(sx + 24, sy + TILE - 10 - h/2, 6, 6);
+            }
+            if (p.watered) {
+              ctx.fillStyle = 'rgba(59,130,246,0.35)';
+              ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
+            }
+          }
+        } else if (cell === 'tree') {
+          ctx.fillStyle = '#6b8e23';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.fillStyle = '#166534';
+          ctx.beginPath(); ctx.arc(sx + TILE/2, sy + 15, 13, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#7c4a22';
+          ctx.fillRect(sx + 16, sy + 16, 8, 18);
+        } else if (cell === 'house') {
+          ctx.fillStyle = '#d4b483';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.fillStyle = '#b91c1c';
+          ctx.beginPath();
+          ctx.moveTo(sx, sy + 12); ctx.lineTo(sx + TILE/2, sy - 4); ctx.lineTo(sx + TILE, sy + 12); ctx.closePath();
+          ctx.fill();
+        } else if (cell === 'door') {
+          ctx.fillStyle = '#d4b483';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.fillStyle = '#7c2d12';
+          ctx.fillRect(sx + 10, sy + 8, 20, 28);
+          ctx.fillStyle = '#fde68a';
+          ctx.fillRect(sx + 16, sy + 14, 8, 8);
+        } else if (cell === 'shop') {
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(sx, sy, TILE, TILE);
+          ctx.fillStyle = '#92400e';
+          ctx.fillRect(sx + 6, sy + 14, TILE - 12, 14);
+          ctx.fillStyle = '#111827';
+          ctx.fillRect(sx + 10, sy + 8, TILE - 20, 4);
+        }
+      },
+
+      draw() {
+        ctx.clearRect(0, 0, this.viewW, this.viewH);
+        const camX = Math.max(0, Math.min(this.player.x - this.viewW / 2, MAP_W * TILE - this.viewW));
+        const camY = Math.max(0, Math.min(this.player.y - this.viewH / 2, MAP_H * TILE - this.viewH));
+
+        for (let y = 0; y < MAP_H; y++) {
+          for (let x = 0; x < MAP_W; x++) this.drawCell(this.map[y][x], x, y, camX, camY);
+        }
+
+        this.player.draw(camX, camY);
+
+        const { tx, ty } = this.player.tileInFront();
+        const sx = tx * TILE - camX;
+        const sy = ty * TILE - camY;
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(sx + 4, sy + 4, TILE - 8, TILE - 8);
+      },
+
+      loop(ts) {
+        this.lastTime = ts;
+        this.update();
+        this.draw();
+        requestAnimationFrame(this.loop.bind(this));
+      },
+
+      init() {
+        resize();
+        this.reset();
+        requestAnimationFrame(this.loop.bind(this));
+      }
+    };
+
+    document.getElementById('startBtn').addEventListener('click', () => game.start());
+    document.getElementById('helpBtn').addEventListener('click', () => helpBox.classList.remove('hidden'));
+    document.getElementById('closeHelpBtn').addEventListener('click', () => helpBox.classList.add('hidden'));
+
+    game.init();
+  </script>
+</body>
+</html>

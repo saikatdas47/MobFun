@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Action RPG - Android</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f172a;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    #gameWrap {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #1f2937 0%, #0f172a 55%, #020617 100%);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 10;
+      pointer-events: none;
+      color: white;
+      font-weight: 700;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    }
+    .pill {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    #menu, #gameOver {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      background: rgba(2, 6, 23, 0.5);
+      color: white;
+      padding: 18px;
+    }
+    .panel {
+      width: min(92vw, 430px);
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 24px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.35);
+      padding: 24px;
+      text-align: center;
+    }
+    h1, h2, p { margin: 0; }
+    .btnRow {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+      background: #16a34a;
+      min-width: 130px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+    }
+    button.secondary { background: #2563eb; }
+    button:active { transform: scale(0.98); }
+    #touchControls {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+    }
+    .joyBase {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      width: 124px;
+      height: 124px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.28);
+      border: 2px solid rgba(255,255,255,0.18);
+      pointer-events: auto;
+      backdrop-filter: blur(4px);
+    }
+    .joyKnob {
+      position: absolute;
+      left: 37px;
+      top: 37px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      border: 2px solid rgba(255,255,255,0.25);
+    }
+    .rightButtons {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+    .touchBtn {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.34);
+      border: 2px solid rgba(255,255,255,0.2);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      backdrop-filter: blur(4px);
+      user-select: none;
+    }
+    .hidden { display: none !important; }
+    .small { font-size: 13px; opacity: 0.88; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="hud">
+      <div class="pill">HP: <span id="hp">100</span></div>
+      <div class="pill">Level: <span id="level">1</span></div>
+      <div class="pill">XP: <span id="xp">0</span></div>
+      <div class="pill">Gold: <span id="gold">0</span></div>
+      <div class="pill">Kills: <span id="kills">0</span></div>
+    </div>
+
+    <div id="menu">
+      <div class="panel">
+        <h1>Shadow Lands RPG</h1>
+        <p style="margin-top:10px; line-height:1.5;">
+          Mobile action RPG demo for Android.<br>
+          Move, attack, defeat monsters, level up, collect gold.
+        </p>
+        <div class="btnRow">
+          <button id="startBtn">Start</button>
+          <button id="howBtn" class="secondary">How To Play</button>
+        </div>
+        <p class="small" style="margin-top:16px;">
+          Left side = movement joystick.<br>
+          Right side = attack button.<br>
+          Keyboard: WASD or arrows to move, Space to attack.
+        </p>
+      </div>
+    </div>
+
+    <div id="gameOver" class="hidden">
+      <div class="panel">
+        <h2>Hero Fallen</h2>
+        <p style="margin-top:10px;">Final Level: <strong id="finalLevel">1</strong></p>
+        <p style="margin-top:6px;">Monsters Defeated: <strong id="finalKills">0</strong></p>
+        <p style="margin-top:6px;">Gold Collected: <strong id="finalGold">0</strong></p>
+        <div class="btnRow">
+          <button id="restartBtn">Play Again</button>
+          <button id="menuBtn" class="secondary">Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="touchControls" class="hidden">
+      <div class="joyBase" id="joyBase">
+        <div class="joyKnob" id="joyKnob"></div>
+      </div>
+      <div class="rightButtons">
+        <div class="touchBtn" id="attackBtn">ATK</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const hpEl = document.getElementById('hp');
+    const levelEl = document.getElementById('level');
+    const xpEl = document.getElementById('xp');
+    const goldEl = document.getElementById('gold');
+    const killsEl = document.getElementById('kills');
+    const menu = document.getElementById('menu');
+    const gameOverScreen = document.getElementById('gameOver');
+    const touchControls = document.getElementById('touchControls');
+    const finalLevelEl = document.getElementById('finalLevel');
+    const finalKillsEl = document.getElementById('finalKills');
+    const finalGoldEl = document.getElementById('finalGold');
+
+    const input = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+      attack: false,
+      attackPressed: false,
+      dirX: 0,
+      dirY: 1,
+    };
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth * devicePixelRatio;
+      canvas.height = window.innerHeight * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      game.width = window.innerWidth;
+      game.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function setKey(code, v) {
+      if (code === 'ArrowUp' || code === 'KeyW') input.up = v;
+      if (code === 'ArrowDown' || code === 'KeyS') input.down = v;
+      if (code === 'ArrowLeft' || code === 'KeyA') input.left = v;
+      if (code === 'ArrowRight' || code === 'KeyD') input.right = v;
+      if (code === 'Space') {
+        input.attack = v;
+        if (v) input.attackPressed = true;
+      }
+    }
+    window.addEventListener('keydown', e => setKey(e.code, true));
+    window.addEventListener('keyup', e => setKey(e.code, false));
+
+    const joyBase = document.getElementById('joyBase');
+    const joyKnob = document.getElementById('joyKnob');
+    let joyActive = false;
+    let joyRect = null;
+
+    function resetJoystick() {
+      joyKnob.style.left = '37px';
+      joyKnob.style.top = '37px';
+      input.left = input.right = input.up = input.down = false;
+    }
+
+    function updateJoystick(clientX, clientY) {
+      joyRect = joyBase.getBoundingClientRect();
+      const cx = joyRect.left + joyRect.width / 2;
+      const cy = joyRect.top + joyRect.height / 2;
+      let dx = clientX - cx;
+      let dy = clientY - cy;
+      const max = 34;
+      const dist = Math.hypot(dx, dy);
+      if (dist > max) {
+        dx = dx / dist * max;
+        dy = dy / dist * max;
+      }
+      joyKnob.style.left = (39 + dx - 2) + 'px';
+      joyKnob.style.top = (39 + dy - 2) + 'px';
+      input.left = dx < -10;
+      input.right = dx > 10;
+      input.up = dy < -10;
+      input.down = dy > 10;
+    }
+
+    joyBase.addEventListener('touchstart', e => {
+      joyActive = true;
+      updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
+    joyBase.addEventListener('touchmove', e => {
+      if (!joyActive) return;
+      updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
+    joyBase.addEventListener('touchend', e => {
+      joyActive = false;
+      resetJoystick();
+      e.preventDefault();
+    }, { passive: false });
+
+    joyBase.addEventListener('mousedown', e => { joyActive = true; updateJoystick(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', e => { if (joyActive) updateJoystick(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', () => { joyActive = false; resetJoystick(); });
+
+    const attackBtn = document.getElementById('attackBtn');
+    function pressAttack(e) { e.preventDefault(); input.attack = true; input.attackPressed = true; }
+    function releaseAttack(e) { e.preventDefault(); input.attack = false; }
+    ['touchstart','mousedown'].forEach(evt => attackBtn.addEventListener(evt, pressAttack, { passive: false }));
+    ['touchend','touchcancel','mouseup','mouseleave'].forEach(evt => attackBtn.addEventListener(evt, releaseAttack, { passive: false }));
+
+    class Hero {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = game.width / 2;
+        this.y = game.height / 2;
+        this.r = 18;
+        this.speed = 3.3;
+        this.maxHp = 100;
+        this.hp = 100;
+        this.level = 1;
+        this.xp = 0;
+        this.gold = 0;
+        this.kills = 0;
+        this.attackCooldown = 0;
+        this.attackTimer = 0;
+        this.attackArc = 52;
+        this.damage = 24;
+        this.invincible = 0;
+      }
+      xpNeed() { return 40 + (this.level - 1) * 30; }
+      gainXP(v) {
+        this.xp += v;
+        while (this.xp >= this.xpNeed()) {
+          this.xp -= this.xpNeed();
+          this.level++;
+          this.maxHp += 15;
+          this.hp = this.maxHp;
+          this.damage += 5;
+        }
+      }
+      update() {
+        let mx = 0, my = 0;
+        if (input.left) mx -= 1;
+        if (input.right) mx += 1;
+        if (input.up) my -= 1;
+        if (input.down) my += 1;
+        const len = Math.hypot(mx, my) || 1;
+        if (mx || my) {
+          mx /= len; my /= len;
+          input.dirX = mx;
+          input.dirY = my;
+        }
+        this.x += mx * this.speed;
+        this.y += my * this.speed;
+        this.x = Math.max(this.r + 8, Math.min(game.width - this.r - 8, this.x));
+        this.y = Math.max(this.r + 8, Math.min(game.height - this.r - 8, this.y));
+
+        if (this.attackCooldown > 0) this.attackCooldown--;
+        if (this.attackTimer > 0) this.attackTimer--;
+        if (this.invincible > 0) this.invincible--;
+
+        if (input.attackPressed && this.attackCooldown <= 0) {
+          this.attackCooldown = 24;
+          this.attackTimer = 8;
+          game.playerAttack();
+          input.attackPressed = false;
+        }
+      }
+      draw() {
+        const blink = this.invincible > 0 && Math.floor(this.invincible / 4) % 2 === 0;
+        if (blink) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if (this.attackTimer > 0) {
+          ctx.strokeStyle = 'rgba(250,204,21,0.65)';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          const ang = Math.atan2(input.dirY, input.dirX);
+          ctx.arc(0, 0, this.attackArc, ang - 0.65, ang + 0.65);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath(); ctx.arc(0, 0, this.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath(); ctx.arc(0, -5, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111827';
+        ctx.beginPath(); ctx.arc(-3, -6, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3, -6, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class Enemy {
+      constructor(type = 'slime') {
+        this.type = type;
+        this.r = type === 'orc' ? 18 : 15;
+        const edge = Math.floor(Math.random() * 4);
+        if (edge === 0) { this.x = -20; this.y = Math.random() * game.height; }
+        if (edge === 1) { this.x = game.width + 20; this.y = Math.random() * game.height; }
+        if (edge === 2) { this.x = Math.random() * game.width; this.y = -20; }
+        if (edge === 3) { this.x = Math.random() * game.width; this.y = game.height + 20; }
+        this.maxHp = type === 'orc' ? 60 + game.hero.level * 10 : 35 + game.hero.level * 6;
+        this.hp = this.maxHp;
+        this.speed = type === 'orc' ? 1.15 + Math.random() * 0.4 : 1.5 + Math.random() * 0.45;
+        this.damage = type === 'orc' ? 14 : 9;
+        this.hitCooldown = 0;
+      }
+      update() {
+        const dx = game.hero.x - this.x;
+        const dy = game.hero.y - this.y;
+        const d = Math.hypot(dx, dy) || 1;
+        this.x += dx / d * this.speed;
+        this.y += dy / d * this.speed;
+        if (this.hitCooldown > 0) this.hitCooldown--;
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = this.type === 'orc' ? '#7c2d12' : '#b91c1c';
+        ctx.beginPath(); ctx.arc(0, 0, this.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111827';
+        ctx.beginPath(); ctx.arc(-4, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(-this.r, -this.r - 10, this.r * 2, 5);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-this.r, -this.r - 10, (this.hp / this.maxHp) * this.r * 2, 5);
+        ctx.restore();
+      }
+    }
+
+    class Loot {
+      constructor(x, y) {
+        this.x = x; this.y = y; this.r = 8; this.life = 900;
+      }
+      update() { this.life--; }
+      draw() {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * 3.5; this.vy = (Math.random() - 0.5) * 3.5;
+        this.life = 25; this.color = color; this.r = 2 + Math.random() * 2;
+      }
+      update() { this.x += this.vx; this.y += this.vy; this.life--; }
+      draw() {
+        ctx.globalAlpha = Math.max(this.life / 25, 0);
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    const game = {
+      width: innerWidth,
+      height: innerHeight,
+      running: false,
+      hero: null,
+      enemies: [],
+      loots: [],
+      particles: [],
+      spawnTimer: 0,
+      worldTick: 0,
+      lastTime: 0,
+
+      reset() {
+        if (!this.hero) this.hero = new Hero();
+        this.hero.reset();
+        this.enemies = [];
+        this.loots = [];
+        this.particles = [];
+        this.spawnTimer = 0;
+        this.worldTick = 0;
+        this.updateHUD();
+      },
+      start() {
+        this.reset();
+        this.running = true;
+        menu.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        touchControls.classList.remove('hidden');
+      },
+      end() {
+        this.running = false;
+        touchControls.classList.add('hidden');
+        finalLevelEl.textContent = this.hero.level;
+        finalKillsEl.textContent = this.hero.kills;
+        finalGoldEl.textContent = this.hero.gold;
+        gameOverScreen.classList.remove('hidden');
+      },
+      updateHUD() {
+        hpEl.textContent = Math.max(0, Math.floor(this.hero.hp));
+        levelEl.textContent = this.hero.level;
+        xpEl.textContent = `${this.hero.xp}/${this.hero.xpNeed()}`;
+        goldEl.textContent = this.hero.gold;
+        killsEl.textContent = this.hero.kills;
+      },
+      spawnEnemy() {
+        const type = Math.random() < 0.2 + Math.min(this.hero.level * 0.03, 0.25) ? 'orc' : 'slime';
+        this.enemies.push(new Enemy(type));
+      },
+      playerAttack() {
+        const ang = Math.atan2(input.dirY, input.dirX);
+        for (const enemy of this.enemies) {
+          const dx = enemy.x - this.hero.x;
+          const dy = enemy.y - this.hero.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > this.hero.attackArc) continue;
+          const eAng = Math.atan2(dy, dx);
+          let diff = Math.atan2(Math.sin(eAng - ang), Math.cos(eAng - ang));
+          if (Math.abs(diff) <= 0.9) {
+            enemy.hp -= this.hero.damage;
+            for (let i = 0; i < 7; i++) this.particles.push(new Particle(enemy.x, enemy.y, '#f97316'));
+          }
+        }
+      },
+      update(delta) {
+        if (!this.running) return;
+        this.worldTick += delta;
+        this.spawnTimer += delta;
+        this.hero.update();
+
+        const spawnGap = Math.max(380, 1200 - this.hero.level * 60 - this.worldTick * 0.01);
+        if (this.spawnTimer > spawnGap) {
+          this.spawnTimer = 0;
+          this.spawnEnemy();
+        }
+
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+          const e = this.enemies[i];
+          e.update();
+          const d = Math.hypot(e.x - this.hero.x, e.y - this.hero.y);
+          if (d < e.r + this.hero.r + 2 && e.hitCooldown <= 0 && this.hero.invincible <= 0) {
+            this.hero.hp -= e.damage;
+            this.hero.invincible = 25;
+            e.hitCooldown = 30;
+            for (let j = 0; j < 8; j++) this.particles.push(new Particle(this.hero.x, this.hero.y, '#ef4444'));
+            if (this.hero.hp <= 0) {
+              this.hero.hp = 0;
+              this.updateHUD();
+              this.end();
+              return;
+            }
+          }
+          if (e.hp <= 0) {
+            this.hero.kills++;
+            this.hero.gainXP(e.type === 'orc' ? 20 : 12);
+            const goldDrop = e.type === 'orc' ? 3 + Math.floor(Math.random() * 4) : 1 + Math.floor(Math.random() * 3);
+            for (let g = 0; g < goldDrop; g++) this.loots.push(new Loot(e.x + (Math.random()-0.5)*16, e.y + (Math.random()-0.5)*16));
+            for (let p = 0; p < 10; p++) this.particles.push(new Particle(e.x, e.y, '#facc15'));
+            this.enemies.splice(i, 1);
+          }
+        }
+
+        for (let i = this.loots.length - 1; i >= 0; i--) {
+          const l = this.loots[i];
+          l.update();
+          if (Math.hypot(l.x - this.hero.x, l.y - this.hero.y) < l.r + this.hero.r + 4) {
+            this.hero.gold++;
+            this.loots.splice(i, 1);
+            continue;
+          }
+          if (l.life <= 0) this.loots.splice(i, 1);
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          this.particles[i].update();
+          if (this.particles[i].life <= 0) this.particles.splice(i, 1);
+        }
+
+        this.updateHUD();
+      },
+      drawGround() {
+        ctx.clearRect(0, 0, this.width, this.height);
+        ctx.fillStyle = '#0b1220';
+        ctx.fillRect(0, 0, this.width, this.height);
+        const tile = 42;
+        for (let y = 0; y < this.height; y += tile) {
+          for (let x = 0; x < this.width; x += tile) {
+            ctx.fillStyle = ((x / tile + y / tile) % 2 === 0) ? '#1e293b' : '#243244';
+            ctx.fillRect(x, y, tile, tile);
+          }
+        }
+        for (let i = 0; i < 26; i++) {
+          const px = (i * 137 + Math.floor(this.worldTick * 0.02)) % (this.width + 80) - 40;
+          const py = (i * 97) % this.height;
+          ctx.fillStyle = 'rgba(34,197,94,0.18)';
+          ctx.beginPath();
+          ctx.arc(px, py, 10, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      },
+      draw() {
+        this.drawGround();
+        this.loots.forEach(l => l.draw());
+        this.enemies.forEach(e => e.draw());
+        this.hero.draw();
+        this.particles.forEach(p => p.draw());
+      },
+      loop(ts) {
+        const delta = Math.min(32, ts - (this.lastTime || ts));
+        this.lastTime = ts;
+        this.update(delta);
+        this.draw();
+        requestAnimationFrame(this.loop.bind(this));
+      },
+      init() {
+        resizeCanvas();
+        this.reset();
+        requestAnimationFrame(this.loop.bind(this));
+      }
+    };
+
+    document.getElementById('startBtn').addEventListener('click', () => game.start());
+    document.getElementById('restartBtn').addEventListener('click', () => game.start());
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      gameOverScreen.classList.add('hidden');
+      menu.classList.remove('hidden');
+    });
+    document.getElementById('howBtn').addEventListener('click', () => {
+      alert('How to play:\n\nMove with the left joystick.\nPress ATK to attack nearby enemies.\nKill monsters to gain XP.\nLevel up to get stronger.\nCollect dropped gold.\nSurvive as long as you can.');
+    });
+
+    game.init();
+  </script>
+</body>
+</html>
